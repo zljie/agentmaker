@@ -138,7 +138,7 @@ intents:
       - materials/list
       - materials/get_by_id
     examples:
-      - "查询所有物料"
+      - "查询今日待审批的采购申请单，如果金额大于1000的需要人工审核"
       - "物料列表"
       - "帮我看看物料有哪些"
 

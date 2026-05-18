@@ -249,6 +249,297 @@
     }
 }
 
+/* 可操作区域的通用样式 - 增强交互提示 */
+.hitl-actionable {
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+/* 可操作区域的发光边框效果 */
+.hitl-actionable::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, #f59e0b, #d97706, #f59e0b);
+    opacity: 0;
+    z-index: -1;
+    transition: opacity 0.3s ease;
+    animation: glowPulse 2s ease-in-out infinite;
+}
+
+.hitl-actionable:hover::before {
+    opacity: 1;
+}
+
+@keyframes glowPulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.8; }
+}
+
+/* 悬停时显示操作提示 */
+.hitl-actionable::after {
+    content: '点击操作';
+    position: absolute;
+    top: -28px;
+    left: 50%;
+    transform: translateX(-50%) scale(0.8);
+    background: #1e293b;
+    color: white;
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    z-index: 100;
+}
+
+.hitl-actionable:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+}
+
+/* 待审批高亮动画 */
+.hitl-pending-highlight {
+    animation: pendingPulse 1.5s ease-in-out infinite;
+    border: 2px dashed #f59e0b !important;
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+}
+
+@keyframes pendingPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(245, 158, 11, 0);
+    }
+}
+
+/* 操作按钮区域高亮 */
+.hitl-action-zone {
+    position: relative;
+    background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+    border: 2px solid #fbbf24;
+    border-radius: 12px;
+    padding: 12px;
+    margin-top: 8px;
+}
+
+.hitl-action-zone::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 16px;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 8px solid #fbbf24;
+}
+
+.hitl-action-zone::after {
+    content: '⚡ 需要您审批';
+    position: absolute;
+    top: -24px;
+    left: 16px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(245, 158, 11, 0.4);
+}
+
+/* 输入框聚焦增强 */
+.hitl-input-enhanced {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border: 2px solid #fbbf24;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    transition: all 0.2s ease;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1);
+}
+
+.hitl-input-enhanced:focus {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2), 0 0 20px rgba(245, 158, 11, 0.15);
+    background: white;
+    transform: scale(1.01);
+}
+
+/* 操作按钮增强 */
+.btn-hitl-action {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-hitl-action::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.4s ease, height 0.4s ease;
+}
+
+.btn-hitl-action:hover::before {
+    width: 200%;
+    height: 200%;
+}
+
+/* 审批按钮点击波纹效果 */
+.btn-hitl-approve {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-hitl-approve::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+.btn-hitl-approve:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.btn-hitl-approve:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
+}
+
+.btn-hitl-reject {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-hitl-reject::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+.btn-hitl-reject:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+}
+
+.btn-hitl-reject:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(220, 38, 38, 0.3);
+}
+
+/* 角标动画 */
+.hitl-badge-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 20px;
+    animation: badgeBounce 2s ease-in-out infinite;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+}
+
+.hitl-badge-action::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: white;
+    border-radius: 50%;
+    animation: dotPulse 1s ease-in-out infinite;
+}
+
+@keyframes badgeBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
+}
+
+@keyframes dotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+/* 进度条增强 */
+.hitl-progress {
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.hitl-progress::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(255,255,255,0.1) 10px,
+        rgba(255,255,255,0.1) 20px
+    );
+}
+
+.hitl-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #34d399, #10b981);
+    background-size: 200% 100%;
+    animation: progressShine 2s linear infinite;
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+@keyframes progressShine {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* 交互提示图标 */
+.hitl-interact-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border-radius: 50%;
+    color: white;
+    font-size: 12px;
+    animation: iconBounce 1s ease-in-out infinite;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+}
+
+@keyframes iconBounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
 /* 申请单卡片 */
 .request-card {
     background: white;
@@ -407,31 +698,49 @@
 
 .btn-line-approve {
     flex: 1;
-    padding: 10px 16px;
+    padding: 12px 20px;
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 10px;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3), 0 4px 12px rgba(16, 185, 129, 0.15);
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
+    position: relative;
+    overflow: hidden;
+    letter-spacing: 0.3px;
+}
+
+.btn-line-approve::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+    transition: left 0.5s;
 }
 
 .btn-line-approve:hover {
     background: linear-gradient(135deg, #059669 0%, #047857 100%);
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.4);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4), 0 8px 20px rgba(16, 185, 129, 0.2);
+}
+
+.btn-line-approve:hover::before {
+    left: 100%;
 }
 
 .btn-line-approve:active {
     transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 1px 3px rgba(16, 185, 129, 0.3);
 }
 
 .btn-line-approve i {
@@ -440,31 +749,49 @@
 
 .btn-line-reject {
     flex: 1;
-    padding: 10px 16px;
+    padding: 12px 20px;
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 10px;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3), 0 4px 12px rgba(239, 68, 68, 0.15);
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
+    position: relative;
+    overflow: hidden;
+    letter-spacing: 0.3px;
+}
+
+.btn-line-reject::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+    transition: left 0.5s;
 }
 
 .btn-line-reject:hover {
     background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4), 0 8px 20px rgba(239, 68, 68, 0.2);
+}
+
+.btn-line-reject:hover::before {
+    left: 100%;
 }
 
 .btn-line-reject:active {
     transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(239, 68, 68, 0.3);
+    box-shadow: 0 1px 3px rgba(239, 68, 68, 0.3);
 }
 
 .btn-line-reject i {

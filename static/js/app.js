@@ -1347,12 +1347,12 @@ function renderPendingApprovals() {
                     <span class="text-xs font-medium text-slate-500">采购明细（${req.line_items?.length || 0} 项）</span>
                 </div>
                 ${(req.line_items || []).map((line, lineIdx) => `
-                    <div class="line-item ${line.status === 'approved' ? 'line-approved' : ''} ${line.status === 'rejected' ? 'line-rejected' : ''}"
+                    <div class="line-item ${line.status === 'pending' ? 'hitl-actionable hitl-pending-highlight' : ''} ${line.status === 'approved' ? 'line-approved' : ''} ${line.status === 'rejected' ? 'line-rejected' : ''}"
                          data-line-id="${line.item_id}" data-request-no="${req.request_no}">
                         <div class="line-item-header">
                             <div class="flex items-center gap-2">
                                 <span class="line-no">${line.line_no}</span>
-                                ${line.status === 'pending' ? '<span class="badge badge-amber badge-xs">待审</span>' : ''}
+                                ${line.status === 'pending' ? '<span class="hitl-badge-action">待处理</span>' : ''}
                                 ${line.status === 'approved' ? '<span class="badge badge-green badge-xs">已通过</span>' : ''}
                                 ${line.status === 'rejected' ? '<span class="badge badge-red badge-xs">已拒绝</span>' : ''}
                             </div>
@@ -1366,16 +1366,18 @@ function renderPendingApprovals() {
                         </div>
                         ${line.status === 'pending' ? `
                         <div class="line-item-actions">
-                            <input type="text" class="line-comment-input"
+                            <input type="text" class="hitl-input-enhanced"
                                    id="comment-${line.item_id}"
-                                   placeholder="审批意见（可选）" />
+                                   placeholder="💡 添加审批意见（可选）" />
                             <div class="line-btn-group">
                                 <button onclick="handleLineApprove('${req.request_no}', '${line.item_id}')"
-                                        class="btn-line-approve">
+                                        class="btn-line-approve btn-hitl-action btn-hitl-approve"
+                                        style="padding: 5px 12px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.25s; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3); display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
                                     <i class="fas fa-check"></i> 通过
                                 </button>
                                 <button onclick="handleLineReject('${req.request_no}', '${line.item_id}')"
-                                        class="btn-line-reject">
+                                        class="btn-line-reject btn-hitl-action btn-hitl-reject"
+                                        style="padding: 5px 12px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.25s; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3); display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
                                     <i class="fas fa-times"></i> 拒绝
                                 </button>
                             </div>
@@ -1397,8 +1399,8 @@ function renderPendingApprovals() {
                     <span class="text-xs text-slate-500">
                         进度: ${(req.line_items || []).filter(l => l.status !== 'pending').length}/${(req.line_items || []).length} 项已审批
                     </span>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${((req.line_items || []).filter(l => l.status !== 'pending').length / Math.max((req.line_items || []).length, 1) * 100)}%"></div>
+                    <div class="hitl-progress">
+                        <div class="hitl-progress-fill" style="width: ${((req.line_items || []).filter(l => l.status !== 'pending').length / Math.max((req.line_items || []).length, 1) * 100)}%"></div>
                     </div>
                 </div>
                 <div class="request-actions">
@@ -1430,33 +1432,37 @@ function createHITLPanel() {
     panel.id = 'hitl-panel';
     panel.className = 'fixed right-4 top-20 w-[420px] max-h-[calc(100vh-8rem)] bg-white rounded-xl shadow-2xl border border-slate-200 z-40 hidden flex flex-col';
     panel.innerHTML = `
-        <div class="flex items-center justify-between p-4 border-b border-slate-200 bg-gradient-to-r from-amber-50 to-white">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                    <i class="fas fa-clipboard-check text-amber-600"></i>
+        <div class="flex items-center justify-between p-4 border-b border-slate-200 bg-gradient-to-r from-amber-50 to-orange-50 relative overflow-hidden">
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(251,191,36,0.1),transparent_50%)]"></div>
+            <div class="flex items-center gap-3 relative">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30 animate-pulse">
+                    <i class="fas fa-clipboard-check text-white"></i>
                 </div>
                 <div>
                     <h3 class="font-semibold text-slate-800">待审批采购申请</h3>
-                    <span id="hitl-count" class="text-sm text-amber-600 font-medium">0 单</span>
+                    <span id="hitl-count" class="text-sm text-amber-600 font-bold">0 单</span>
                 </div>
             </div>
-            <button onclick="hideHITLPanel()" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">
+            <button onclick="hideHITLPanel()" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-amber-100 text-slate-400 hover:text-amber-600 transition-colors">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         <div id="hitl-pending-list" class="flex-1 overflow-y-auto p-4 space-y-4">
         </div>
-        <div class="p-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
-            <div class="flex items-center justify-between text-sm text-slate-500 mb-3">
-                <span><i class="fas fa-info-circle mr-1"></i>审批规则：金额 ≤ ¥1,000 自动通过</span>
-                <span class="font-medium text-amber-600">金额 > ¥1,000 需人工审批</span>
+        <div class="p-4 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-amber-50 rounded-b-xl">
+            <div class="flex items-center justify-between text-sm text-slate-600 mb-3 p-2 bg-amber-50 rounded-lg border border-amber-200">
+                <span><i class="fas fa-shield-alt text-amber-500 mr-1"></i>规则：金额 ≤ ¥1,000 自动通过</span>
+                <span class="font-bold text-amber-600 flex items-center gap-1">
+                    <span class="hitl-interact-icon"><i class="fas fa-exclamation text-xs"></i></span>
+                    金额 > ¥1,000 需人工审批
+                </span>
             </div>
             <div class="flex gap-3">
-                <button onclick="handleApproveAll()" class="flex-1 py-3 px-6 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl font-semibold transition-all shadow-lg shadow-green-500/30 flex items-center justify-center gap-2">
+                <button onclick="handleApproveAll()" class="flex-1 py-3 px-6 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl font-semibold transition-all shadow-lg shadow-green-500/30 flex items-center justify-center gap-2 btn-hitl-action btn-hitl-approve">
                     <i class="fas fa-check-double"></i>
                     一键通过全部
                 </button>
-                <button onclick="hideHITLPanel()" class="py-3 px-6 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl font-medium transition-colors">
+                <button onclick="hideHITLPanel()" class="py-3 px-6 bg-white hover:bg-slate-100 text-slate-600 border-2 border-slate-200 hover:border-amber-300 rounded-xl font-medium transition-all shadow-sm hover:shadow-md">
                     稍后处理
                 </button>
             </div>

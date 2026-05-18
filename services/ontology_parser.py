@@ -70,7 +70,7 @@ class OntologyParser:
       "description": "用户想要查询物料主数据信息",
       "keywords": ["物料", "材料", "查询物料", "材料列表"],
       "actions": ["materials/list", "materials/get_by_id"],
-      "examples": ["查询所有物料", "看看有哪些材料", "给我物料清单"]
+      "examples": ["查询今日待审批的采购申请单，如果金额大于1000的需要人工审核", "看看有哪些材料", "给我物料清单"]
     }
   ],
   "summary": "本本体包含 X 个实体，Y 个操作，可以支持 Z 种主要意图..."

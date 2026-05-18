@@ -703,7 +703,7 @@ def render_intent() -> str:
 
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">示例问法 <span class="text-slate-400 font-normal">(每行一个)</span></label>
-                    <textarea id="intent-examples" rows="3" placeholder="查询所有物料&#10;物料列表&#10;帮我看看物料有哪些" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"></textarea>
+                    <textarea id="intent-examples" rows="3" placeholder="查询今日待审批的采购申请单，如果金额大于1000的需要人工审核&#10;物料列表&#10;帮我看看物料有哪些" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"></textarea>
                 </div>
             </div>
             <div class="flex items-center justify-end gap-2 p-4 border-t bg-slate-50">
@@ -1022,8 +1022,8 @@ def render_chat() -> str:
             <div class="card p-4">
                 <h3 class="text-xs font-semibold text-slate-500 mb-3 uppercase tracking-wide">示例问题</h3>
                 <div class="space-y-1.5">
-                    <button onclick="sendExample('查询所有物料')" class="w-full text-left px-3 py-2 text-xs bg-slate-50 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                        <i class="fas fa-database text-blue-400 mr-2 w-4"></i>查询所有物料
+                    <button onclick="sendExample('查询今日待审批的采购申请单，如果金额大于1000的需要人工审核')" class="w-full text-left px-3 py-2 text-xs bg-slate-50 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                        <i class="fas fa-database text-blue-400 mr-2 w-4"></i>查询今日待审批的采购申请单，如果金额大于1000的需要人工审核
                     </button>
                     <button onclick="sendExample('有哪些供应商？')" class="w-full text-left px-3 py-2 text-xs bg-slate-50 rounded-lg hover:bg-green-50 hover:text-green-600 transition-colors">
                         <i class="fas fa-building text-green-400 mr-2 w-4"></i>有哪些供应商？
