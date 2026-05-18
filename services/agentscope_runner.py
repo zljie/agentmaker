@@ -9,6 +9,12 @@ from dataclasses import dataclass
 
 from models.bundle import Bundle, create_sample_bundle
 from models.connector import MockConnector
+from services.procurement_workflow import (
+    ProcurementWorkflowEngine,
+    get_workflow_engine,
+    TaskType,
+    WorkflowTask,
+)
 
 
 @dataclass
@@ -89,10 +95,19 @@ class AgentScopeRunner:
                 agentscope.init()
 
             # 创建模型
+            # 使用配置中的 model_name，默认为 deepseek-chat
+            model_name = self.model_config.get("model_name", "deepseek-chat")
+            api_key = self.model_config.get("api_key", "")
+            api_base = self.model_config.get("api_base", "https://api.deepseek.com/v1")
+
+            # 如果 model_name 包含 "deepseek"，使用 DeepSeek 的 API base
+            if "deepseek" in model_name.lower():
+                api_base = self.model_config.get("api_base", "https://api.deepseek.com/v1")
+
             model = OpenAIChatModel(
-                model_name=self.model_config.get("model_name", "gpt-4o"),
+                model_name=model_name,
                 api_key=api_key,
-                api_base=self.model_config.get("api_base", "https://api.openai.com/v1"),
+                api_base=api_base,
                 temperature=self.model_config.get("temperature", 0.7),
             )
 
@@ -203,6 +218,13 @@ class MockRunner:
     """
     Mock 运行器 - 不依赖真实 LLM API
     用于演示和测试
+
+    包含完整的采购审批工作流支持:
+    1. 日期转换（内部函数，减少 token）
+    2. 意图识别
+    3. 任务规划
+    4. 分步执行
+    5. 自动审批 / HITL 审批
     """
 
     def __init__(
@@ -214,6 +236,8 @@ class MockRunner:
         self.run_id = run_id or str(uuid.uuid4())
         self.bundle = bundle
         self._should_abort = False
+        # 采购审批工作流引擎
+        self.workflow_engine = get_workflow_engine()
 
     async def run_stream(self, user_message: str) -> AsyncGenerator[RunEvent, None]:
         """Mock 流式运行"""
@@ -238,6 +262,13 @@ class MockRunner:
             step=1,
         )
 
+        # 检测是否为采购审批场景
+        if self._is_procurement_workflow(user_message):
+            async for event in self._run_procurement_workflow(user_message):
+                yield event
+            return
+
+        # 原有逻辑保持不变...
         # 模拟思考
         await asyncio.sleep(0.5)
         yield RunEvent(
@@ -479,6 +510,277 @@ class MockRunner:
 4. **数据分析** - 需求排名、供应商绩效分析
 
 请告诉我您的需求。"""
+
+    # ========== 采购审批工作流 ==========
+
+    def _is_procurement_workflow(self, message: str) -> bool:
+        """检测是否为采购审批工作流场景"""
+        keywords = [
+            "采购申请", "申请单", "待审批", "审批",
+            "PR", "procurement", "approval"
+        ]
+        return any(kw in message.lower() for kw in keywords)
+
+    async def _run_procurement_workflow(self, user_message: str) -> AsyncGenerator[RunEvent, None]:
+        """
+        运行采购审批工作流
+
+        工作流程:
+        1. 日期转换（内部函数，减少 LLM token）
+        2. 意图识别
+        3. 任务规划
+        4. 分步执行
+        5. 自动审批 / 等待 HITL
+        """
+        # Step 1: 基础技能 - 日期转换（内部函数）
+        yield RunEvent(
+            type="skill_call",
+            data={
+                "skill": "date_converter",
+                "skill_name": "日期转换（内部函数）",
+                "description": "将自然语言日期转换为精确日期",
+                "internal": True,  # 标记为内部函数
+            },
+            iteration=0,
+            step=1,
+        )
+
+        # 解析日期（使用内部函数，不消耗 LLM token）
+        date_range = self.workflow_engine.convert_date_reference(user_message)
+
+        yield RunEvent(
+            type="skill_result",
+            data={
+                "skill": "date_converter",
+                "result": {
+                    "date_from": date_range.start,
+                    "date_to": date_range.end,
+                    "is_today": date_range.is_today,
+                    "note": "使用内部函数解析，无需 LLM 参与",
+                }
+            },
+            iteration=0,
+            step=2,
+        )
+
+        # Step 2: 意图识别
+        yield RunEvent(
+            type="thinking",
+            data={"thought": "正在识别用户意图..."},
+            iteration=0,
+            step=3,
+        )
+
+        intent_result = self.workflow_engine.recognize_intent(user_message)
+
+        yield RunEvent(
+            type="intent",
+            data={
+                "type": intent_result["intent"],
+                "confidence": intent_result["confidence"],
+                "entities": intent_result["entities"],
+                "suggested_actions": intent_result["suggested_actions"],
+            },
+            iteration=0,
+            step=4,
+        )
+
+        # Step 3: 任务规划
+        yield RunEvent(
+            type="thinking",
+            data={"thought": "正在生成执行计划..."},
+            iteration=0,
+            step=5,
+        )
+
+        workflow_plan = self.workflow_engine.plan_workflow(intent_result, user_message)
+
+        yield RunEvent(
+            type="plan",
+            data={
+                "tasks": [t.to_dict() for t in workflow_plan.tasks],
+                "auto_approve_threshold": workflow_plan.auto_approve_threshold,
+            },
+            iteration=0,
+            step=6,
+        )
+
+        # Step 4: 执行任务 - 查询待审批申请
+        yield RunEvent(
+            type="thinking",
+            data={"thought": "正在查询采购申请单..."},
+            iteration=0,
+            step=7,
+        )
+
+        # 执行查询任务
+        query_task = workflow_plan.tasks[0]
+        requests = await self.workflow_engine.execute_task(query_task)
+
+        yield RunEvent(
+            type="step_start",
+            data={
+                "tool": "query_procurement_requests",
+                "action": "procurement_requests/list",
+                "args": query_task.params,
+            },
+            iteration=0,
+            step=8,
+        )
+
+        yield RunEvent(
+            type="step_end",
+            data={
+                "tool": "query_procurement_requests",
+                "status": "ok",
+                "output": {
+                    "total": len(requests),
+                    "data": requests,
+                }
+            },
+            iteration=0,
+            step=9,
+        )
+
+        # Step 5: 分析并分类申请
+        yield RunEvent(
+            type="thinking",
+            data={"thought": "正在分析申请单，确定审批方式..."},
+            iteration=0,
+            step=10,
+        )
+
+        analysis = self.workflow_engine.analyze_requests(requests)
+
+        yield RunEvent(
+            type="analysis",
+            data={
+                "auto_approve": analysis["auto_approve"],
+                "hitl_approve": analysis["hitl_approve"],
+                "summary": analysis["summary"],
+            },
+            iteration=0,
+            step=11,
+        )
+
+        # Step 6: 执行自动审批
+        auto_results = []
+        for req in analysis["auto_approve"]:
+            result = self.workflow_engine.auto_approve(req)
+            auto_results.append(result)
+
+            yield RunEvent(
+                type="auto_approved",
+                data=result,
+                iteration=0,
+                step=12,
+            )
+
+        # Step 7: 准备 HITL 审批
+        hitl_requests = []
+        for req in analysis["hitl_approve"]:
+            hitl_data = self.workflow_engine.prepare_hitl_approval(req)
+            hitl_requests.append(hitl_data)
+
+            yield RunEvent(
+                type="hitl_pending",
+                data=hitl_data,
+                iteration=0,
+                step=13,
+            )
+
+        # Step 8: 生成最终响应
+        yield RunEvent(
+            type="final_delta",
+            data={
+                "content": self._generate_procurement_response(
+                    date_range=date_range,
+                    analysis=analysis,
+                    auto_results=auto_results,
+                    hitl_requests=hitl_requests,
+                )
+            },
+            iteration=0,
+            step=14,
+        )
+
+        yield RunEvent(
+            type="done",
+            data={"timestamp": self._get_timestamp()},
+            iteration=0,
+            step=15,
+        )
+
+    def _generate_procurement_response(
+        self,
+        date_range,
+        analysis: Dict,
+        auto_results: List[Dict],
+        hitl_requests: List[Dict],
+    ) -> str:
+        """生成采购审批工作流的响应"""
+        summary = analysis["summary"]
+
+        lines = [
+            f"## 查询结果",
+            "",
+            f"**日期范围**: {date_range.start} 至 {date_range.end}",
+            f"**待审批总数**: {summary['auto_count'] + summary['hitl_count']} 单",
+            "",
+        ]
+
+        # 自动审批结果
+        if auto_results:
+            lines.extend([
+                "### 自动审批（金额 ≤ 1000 元）",
+                "",
+                f"已自动审批 **{len(auto_results)}** 单，金额合计 **¥{summary['auto_total']:.2f}**",
+                "",
+                "| 申请单号 | 申请人 | 部门 | 金额 | 状态 |",
+                "|---------|-------|------|------|------|",
+            ])
+
+            for result in auto_results:
+                req = next(r for r in analysis["auto_approve"] if r["request_no"] == result["request_no"])
+                lines.append(f"| {result['request_no']} | {req.get('applicant', '-')} | {req.get('department', '-')} | ¥{req.get('amount', 0):.2f} | ✅ 自动通过 |")
+
+            lines.append("")
+
+        # HITL 审批
+        if hitl_requests:
+            lines.extend([
+                "### 需要人工审批（金额 > 1000 元）",
+                "",
+                f"需要您审批 **{len(hitl_requests)}** 单，金额合计 **¥{summary['hitl_total']:.2f}**",
+                "",
+                "| 申请单号 | 申请人 | 部门 | 金额 | 申请标题 |",
+                "|---------|-------|------|------|---------|",
+            ])
+
+            for req in hitl_requests:
+                lines.append(
+                    f"| {req['request_no']} | {req['requester']['name']} | {req['requester']['department']} | "
+                    f"**¥{req['amount']:.2f}** | {req['title']} |"
+                )
+
+            lines.extend([
+                "",
+                "---",
+                "",
+                "**请选择审批操作**:",
+                "- 回复 `审批通过 PR-xxx` 来批准某张申请",
+                "- 回复 `审批拒绝 PR-xxx` 并说明理由来拒绝",
+                "- 回复 `全部通过` 来批准以上所有申请",
+            ])
+
+        if not hitl_requests and auto_results:
+            lines.extend([
+                "---",
+                "",
+                "✅ **所有待审批申请已处理完毕！**",
+            ])
+
+        return "\n".join(lines)
 
     def abort(self):
         """中止运行"""

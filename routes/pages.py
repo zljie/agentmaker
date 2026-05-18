@@ -264,9 +264,9 @@ def render_layout(title: str, active_tab: str, content: str) -> Table:
             # Toast Container
             Div(id="toast-container"),
 
-            # JS
+            # JS (with cache busting)
             Script(src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"),
-            Script(src="/static/js/app.js"),
+            Script(src="/static/js/app.js?v=20240515"),
 
             cls="bg-slate-100 text-slate-800"
         )
@@ -446,6 +446,9 @@ def render_ontology() -> str:
         <div class="flex items-center justify-between mb-4">
             <h3 class="text-sm font-semibold text-slate-700">本体列表</h3>
             <div class="flex gap-2">
+                <button onclick="showUploadModal()" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-upload mr-1"></i>上传本体
+                </button>
                 <button onclick="loadOntologyRaw()" class="px-3 py-1.5 text-xs border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
                     <i class="fas fa-code mr-1"></i>查看 YAML
                 </button>
@@ -460,6 +463,7 @@ def render_ontology() -> str:
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="badge badge-blue">v{ont.version}</span>
+                        <span class="badge badge-green">示例</span>
                         <span class="text-xs text-slate-400">{len(ont.entities)} 实体, {len(ont.actions)} 操作</span>
                     </div>
                 </div>
@@ -467,6 +471,51 @@ def render_ontology() -> str:
                     <span class="badge badge-slate"><i class="fas fa-cube mr-1"></i>{len(ont.entities)} 实体类型</span>
                     <span class="badge badge-slate"><i class="fas fa-bolt mr-1"></i>{len(ont.actions)} 操作</span>
                     <span class="badge badge-slate"><i class="fas fa-gavel mr-1"></i>{len(ont.rules)} 规则</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Modal -->
+        <div id="upload-modal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full">
+                <div class="flex items-center justify-between p-4 border-b">
+                    <h3 class="font-semibold text-slate-800">上传本体</h3>
+                    <button onclick="closeUploadModal()" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">✕</button>
+                </div>
+                <div class="p-6">
+                    <div id="drop-zone" class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-blue-400 hover:bg-blue-50/50 transition-all cursor-pointer"
+                         onclick="document.getElementById('ontology-file-input').click()">
+                        <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-cloud-upload-alt text-blue-500 text-xl"></i>
+                        </div>
+                        <div class="font-medium text-slate-700 mb-1">点击或拖拽上传文件</div>
+                        <div class="text-xs text-slate-400">支持 .yaml, .yml, .json 文件</div>
+                        <input type="file" id="ontology-file-input" accept=".yaml,.yml,.json" class="hidden" onchange="handleFileSelect(event)">
+                    </div>
+                    <div id="file-preview" class="hidden mt-4 p-4 bg-slate-50 rounded-lg">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                                <i class="fas fa-file-code text-blue-500"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div id="file-name" class="font-medium text-sm text-slate-700"></div>
+                                <div id="file-size" class="text-xs text-slate-400"></div>
+                            </div>
+                            <button onclick="clearFile()" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-200 text-slate-400">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-xs text-slate-500 mb-1">本体名称（可选）</label>
+                        <input type="text" id="ontology-name-input" placeholder="留空则使用文件名" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 p-4 border-t bg-slate-50 rounded-b-xl">
+                    <button onclick="closeUploadModal()" class="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">取消</button>
+                    <button id="upload-btn" onclick="uploadOntology()" disabled class="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-upload mr-1"></i>上传
+                    </button>
                 </div>
             </div>
         </div>
@@ -552,22 +601,32 @@ def render_intent() -> str:
     bundle = create_sample_bundle()
     intent_rows = "".join(
         f'''
-        <div class="p-4 border border-slate-200 rounded-lg border-l-4 border-l-purple-500 hover:border-purple-300 hover:shadow-sm transition-all">
+        <div class="p-4 border border-slate-200 rounded-lg border-l-4 border-l-purple-500 hover:border-purple-300 hover:shadow-sm transition-all intent-item" data-type="{i.type}">
             <div class="flex items-center justify-between">
-                <div>
-                    <div class="font-medium text-slate-800">{i.type}</div>
-                    <div class="text-xs text-slate-500 mt-1">{i.description}</div>
+                <div class="flex items-center gap-3">
+                    <div>
+                        <div class="font-medium text-slate-800">{i.type}</div>
+                        <div class="text-xs text-slate-500 mt-1">{i.description}</div>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="badge badge-purple">{i.priority} 分</span>
-                    <span class="badge badge-{'green' if i.enabled else 'red'}">{i.enabled and "已启用" or "已禁用"}</span>
+                    <span class="badge badge-{'green' if i.enabled else 'red'}">{"已启用" if i.enabled else "已禁用"}</span>
+                    <button onclick="editIntent('{i.type}')" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors" title="编辑">
+                        <i class="fas fa-pen text-xs"></i>
+                    </button>
+                    <button onclick="deleteIntent('{i.type}')" class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors" title="删除">
+                        <i class="fas fa-trash text-xs"></i>
+                    </button>
                 </div>
             </div>
-            <div class="mt-2 flex flex-wrap gap-1">
-                {("".join(f'<span class="badge badge-slate">{kw}</span>' for kw in i.keywords)) if i.keywords else '<span class="text-xs text-slate-400">无关键词</span>'}
+            <div class="mt-3 flex flex-wrap gap-1">
+                <span class="text-xs text-slate-400">关键词:</span>
+                {("".join(f'<span class="badge badge-slate">{kw}</span>' for kw in i.keywords)) if i.keywords else '<span class="text-xs text-slate-400">无</span>'}
             </div>
             <div class="mt-2 flex flex-wrap gap-1">
-                {("".join(f'<span class="font-mono text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{a}</span>' for a in i.actions)) if i.actions else '<span class="text-xs text-slate-400">无关联操作</span>'}
+                <span class="text-xs text-slate-400">操作:</span>
+                {("".join(f'<span class="font-mono text-xs text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{a}</span>' for a in i.actions)) if i.actions else '<span class="text-xs text-slate-400">无</span>'}
             </div>
         </div>'''
         for i in bundle.intents
@@ -575,13 +634,114 @@ def render_intent() -> str:
     return f"""
     <div class="card p-6">
         <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-semibold text-slate-700">意图列表</h3>
-            <button class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                <i class="fas fa-plus mr-1"></i>新建意图
-            </button>
+            <h3 class="text-sm font-semibold text-slate-700">意图列表 <span class="text-xs text-slate-400 font-normal">({len(bundle.intents)} 个)</span></h3>
+            <div class="flex gap-2">
+                <button onclick="parseOntology()" class="px-3 py-1.5 text-xs bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                    <i class="fas fa-magic mr-1"></i>从本体解析
+                </button>
+                <button onclick="showCreateIntentModal()" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-plus mr-1"></i>新建意图
+                </button>
+            </div>
         </div>
         <div class="space-y-3" id="intent-list">
             {intent_rows if intent_rows else '<div class="empty-state"><i class="fas fa-bullseye"></i><p>暂无意图定义</p></div>'}
+        </div>
+    </div>
+
+    <!-- Intent Edit Modal -->
+    <div id="intent-modal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b">
+                <h3 class="font-semibold text-slate-800" id="intent-modal-title">编辑意图</h3>
+                <button onclick="closeIntentModal()" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                <input type="hidden" id="intent-original-type" value="">
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">意图类型 <span class="text-red-500">*</span></label>
+                    <input type="text" id="intent-type" placeholder="如: query_materials" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                    <p class="text-xs text-slate-400 mt-1">英文标识符，用于代码中识别</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">意图名称 <span class="text-red-500">*</span></label>
+                    <input type="text" id="intent-name" placeholder="如: 查询物料" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">描述</label>
+                    <textarea id="intent-description" rows="2" placeholder="描述这个意图的用途..." class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">关键词 <span class="text-slate-400 font-normal">(逗号分隔)</span></label>
+                    <input type="text" id="intent-keywords" placeholder="物料, 材料, 查询物料" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                    <p class="text-xs text-slate-400 mt-1">用于匹配用户输入</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">关联操作 <span class="text-slate-400 font-normal">(多个用逗号分隔)</span></label>
+                    <input type="text" id="intent-actions" placeholder="materials/list, materials/get_by_id" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                    <p class="text-xs text-slate-400 mt-1">可从右侧可用操作列表中选择</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">优先级</label>
+                        <input type="number" id="intent-priority" value="50" min="1" max="100" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                        <p class="text-xs text-slate-400 mt-1">1-100，数字越大优先级越高</p>
+                    </div>
+                    <div class="flex items-center pt-6">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="intent-enabled" checked class="w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500">
+                            <span class="text-sm text-slate-700">启用此意图</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">示例问法 <span class="text-slate-400 font-normal">(每行一个)</span></label>
+                    <textarea id="intent-examples" rows="3" placeholder="查询所有物料&#10;物料列表&#10;帮我看看物料有哪些" class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"></textarea>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-2 p-4 border-t bg-slate-50">
+                <button onclick="closeIntentModal()" class="px-4 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">取消</button>
+                <button onclick="saveIntent()" class="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                    <i class="fas fa-check mr-1"></i>保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Parse Result Modal -->
+    <div id="parse-modal" class="hidden fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div class="flex items-center justify-between p-4 border-b">
+                <div>
+                    <h3 class="font-semibold text-slate-800">本体解析结果</h3>
+                    <p class="text-xs text-slate-500 mt-1" id="parse-summary"></p>
+                </div>
+                <button onclick="closeParseModal()" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4" id="parse-content">
+                <div class="text-center py-8">
+                    <div class="animate-spin w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                    <p class="text-slate-500">正在解析本体...</p>
+                </div>
+            </div>
+            <div class="flex items-center justify-between p-4 border-t bg-slate-50">
+                <div class="text-xs text-slate-500">
+                    <span id="parse-kg-stats"></span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="closeParseModal()" class="px-4 py-2 text-xs border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">取消</button>
+                    <button onclick="applyParsedIntents()" class="px-4 py-2 text-xs bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                        <i class="fas fa-check mr-1"></i>应用意图
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
     """
@@ -767,9 +927,9 @@ def render_chat() -> str:
                         <div class="text-xs text-slate-400">{bundle.agent_config.description}</div>
                     </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                    <span class="text-xs text-slate-400">在线</span>
+                <div id="llm-status" class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-slate-300"></span>
+                    <span class="text-xs text-slate-400">检查中...</span>
                 </div>
             </div>
 

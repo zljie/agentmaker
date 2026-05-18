@@ -5,9 +5,11 @@ NextStudio - AgentScope + FastHTML
 启动: python app.py
 访问: http://localhost:5000
 """
-import asyncio
+import json
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
 from fasthtml.common import *
-from fasthtml.starlette import *
 from pathlib import Path
 
 from config import HOST, PORT, DEBUG
@@ -20,7 +22,6 @@ app = FastHTML(
     title="NextStudio",
     debug=DEBUG,
     hdrs=(
-        # Static files
         Link(rel="stylesheet", href="/static/css/app.css"),
     ),
 )
@@ -29,6 +30,10 @@ app = FastHTML(
 # 注册路由
 api_routes(app)
 page_routes(app)
+
+
+# 静默处理 FastHTML 内部 JSONDecodeError（parse_form 先尝试 json 再降级到 form）
+app.add_exception_handler(json.decoder.JSONDecodeError, lambda req, exc: JSONResponse({"error": "Invalid JSON"}, status_code=400))
 
 
 # 静态文件

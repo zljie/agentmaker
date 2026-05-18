@@ -1,0 +1,1041 @@
+version: "0.1.2"
+
+semantic_model:
+  - name: dtp_procurement_ontology
+    description: 需求到采购(DTP)端到端业务本体模型,覆盖需求计划-平衡利库-采购申请(PR)-采购订单(PO)-收货入库(GR)-库存批次
+    ai_context:
+      instructions: "默认边界:本模型聚焦DTP主流程与关键控制点;物理数据源/字段名未提供,source与字段表达式使用占位命名,需在接入真实系统时映射到实际表与字段。默认口径:紧急采购以purchase_requisitions.is_urgent=TRUE;集采以purchase_orders.is_centralized=TRUE;框架协议以下单标识purchase_orders.is_under_framework=TRUE。"
+      synonyms: ["需求到采购", "DTP", "需求到采购流程", "采购端到端", "LTR_PTR"]
+      examples:
+        - "按月查看PR转PO平均周期趋势(本月/近6个月)。"
+        - "指定时间窗口内,采购金额排名Top供应商,并输出准时交付率。"
+        - "未来N天内临期库存批次有哪些,分别剩余多少数量。"
+        - "指定工厂在时间窗口内,需求计划中需求量最大的Top物料有哪些。"
+    datasets:
+      - name: materials
+        source: placeholder.dtp.materials
+        description: 物料主数据
+        primary_key: [material_id]
+        fields:
+          - name: material_id
+            type: String
+            description: 物料ID(主键)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: materials.material_id
+          - name: material_code
+            type: String
+            description: 物料编码
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: materials.material_code
+          - name: material_name
+            type: String
+            description: 物料名称
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: materials.material_name
+          - name: material_group
+            type: String
+            description: 物料组/品类
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: materials.material_group
+          - name: base_uom
+            type: String
+            description: 基本计量单位
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: materials.base_uom
+          - name: status
+            type: String
+            description: 有效状态
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: materials.status
+
+      - name: suppliers
+        source: placeholder.dtp.suppliers
+        description: 供应商主数据(准入/阻断/协同)
+        primary_key: [supplier_id]
+        fields:
+          - name: supplier_id
+            type: String
+            description: 供应商ID(主键)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: suppliers.supplier_id
+          - name: supplier_code
+            type: String
+            description: 供应商编码
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: suppliers.supplier_code
+          - name: supplier_name
+            type: String
+            description: 供应商名称
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: suppliers.supplier_name
+          - name: status
+            type: String
+            description: 状态(Active/Blocked等)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: suppliers.status
+          - name: payment_terms
+            type: String
+            description: 付款条件
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: suppliers.payment_terms
+
+      - name: demand_plans
+        source: placeholder.dtp.demand_plans
+        description: 需求计划(聚合后的可执行需求)
+        primary_key: [demand_plan_id]
+        fields:
+          - name: demand_plan_id
+            type: String
+            description: 需求计划ID(主键)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: demand_plans.demand_plan_id
+          - name: plant_id
+            type: String
+            description: 工厂/需求地点
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: demand_plans.plant_id
+          - name: demand_source
+            type: String
+            description: 需求来源(部门/项目等)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: demand_plans.demand_source
+          - name: material_id
+            type: String
+            description: 物料ID
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: demand_plans.material_id
+          - name: demand_date
+            type: Date
+            description: 需求日期
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: demand_plans.demand_date
+            dimension:
+              is_time: true
+          - name: quantity
+            type: Number
+            description: 需求数量(已聚合)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: demand_plans.quantity
+          - name: created_at
+            type: DateTime
+            description: 需求计划生成时间
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: demand_plans.created_at
+            dimension:
+              is_time: true
+
+      - name: inventory_lot_balances
+        source: placeholder.dtp.inventory_lot_balances
+        description: 库存批次台账(用于平衡利库与临期风险)
+        primary_key: [lot_balance_id]
+        fields:
+          - name: lot_balance_id
+            type: String
+            description: 库存批次余额ID(主键)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: inventory_lot_balances.lot_balance_id
+          - name: material_id
+            type: String
+            description: 物料ID
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: inventory_lot_balances.material_id
+          - name: plant_id
+            type: String
+            description: 工厂
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: inventory_lot_balances.plant_id
+          - name: storage_location
+            type: String
+            description: 库位/库存地点
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: inventory_lot_balances.storage_location
+          - name: batch_no
+            type: String
+            description: 批次号
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: inventory_lot_balances.batch_no
+          - name: expiry_date
+            type: Date
+            description: 有效期/到期日
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: inventory_lot_balances.expiry_date
+            dimension:
+              is_time: true
+          - name: on_hand_qty
+            type: Number
+            description: 现存量
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: inventory_lot_balances.on_hand_qty
+          - name: last_updated_at
+            type: DateTime
+            description: 台账更新时间
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: inventory_lot_balances.last_updated_at
+            dimension:
+              is_time: true
+
+      - name: balancing_recommendations
+        source: placeholder.dtp.balancing_recommendations
+        description: 平衡利库结果(库存匹配/调拨/替代/净需求输出)
+        primary_key: [recommendation_id]
+        fields:
+          - name: recommendation_id
+            type: String
+            description: 推荐ID(主键)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: balancing_recommendations.recommendation_id
+          - name: demand_plan_id
+            type: String
+            description: 关联需求计划ID
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: balancing_recommendations.demand_plan_id
+          - name: material_id
+            type: String
+            description: 物料ID
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: balancing_recommendations.material_id
+          - name: recommendation_type
+            type: String
+            description: 推荐类型(use_stock/transfer/purchase等)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: balancing_recommendations.recommendation_type
+          - name: source_plant_id
+            type: String
+            description: 调出工厂(调拨场景)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: balancing_recommendations.source_plant_id
+          - name: target_plant_id
+            type: String
+            description: 调入工厂(需求工厂)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: balancing_recommendations.target_plant_id
+          - name: suggested_qty
+            type: Number
+            description: 建议满足数量
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: balancing_recommendations.suggested_qty
+          - name: created_at
+            type: DateTime
+            description: 推荐生成时间
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: balancing_recommendations.created_at
+            dimension:
+              is_time: true
+
+      - name: purchase_requisitions
+        source: placeholder.dtp.purchase_requisitions
+        description: 采购申请(PR),可由需求计划/采购计划参考创建或独立创建
+        primary_key: [purchase_requisition_id]
+        fields:
+          - name: purchase_requisition_id
+            type: String
+            description: 采购申请ID(主键)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_requisitions.purchase_requisition_id
+          - name: demand_plan_id
+            type: String
+            description: 关联需求计划ID(参考创建时)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_requisitions.demand_plan_id
+          - name: plant_id
+            type: String
+            description: 工厂/申请地点
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_requisitions.plant_id
+          - name: material_id
+            type: String
+            description: 物料ID
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_requisitions.material_id
+          - name: requested_qty
+            type: Number
+            description: 申请数量
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_requisitions.requested_qty
+          - name: required_date
+            type: Date
+            description: 要求到货日期
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_requisitions.required_date
+            dimension:
+              is_time: true
+          - name: is_urgent
+            type: Boolean
+            description: 紧急标识
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_requisitions.is_urgent
+          - name: suggested_supplier_id
+            type: String
+            description: 建议供应商ID(可为空)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_requisitions.suggested_supplier_id
+          - name: status
+            type: String
+            description: 状态(Draft/Submitted/Approved/Rejected等)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_requisitions.status
+          - name: created_at
+            type: DateTime
+            description: 创建时间
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_requisitions.created_at
+            dimension:
+              is_time: true
+          - name: approved_at
+            type: DateTime
+            description: 审批通过时间
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_requisitions.approved_at
+            dimension:
+              is_time: true
+          - name: budget_check_result
+            type: String
+            description: 预算校验结果(PASS/BLOCK等)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_requisitions.budget_check_result
+
+      - name: purchase_orders
+        source: placeholder.dtp.purchase_orders
+        description: 采购订单(PO),必须来源于已审批PR,并受集采/协议与合规模型约束
+        primary_key: [purchase_order_id]
+        fields:
+          - name: purchase_order_id
+            type: String
+            description: 采购订单ID(主键)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_orders.purchase_order_id
+          - name: purchase_requisition_id
+            type: String
+            description: 来源PR ID
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_orders.purchase_requisition_id
+          - name: supplier_id
+            type: String
+            description: 供应商ID
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_orders.supplier_id
+          - name: status
+            type: String
+            description: 状态(Released/Sent/Confirmed/Closed等)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_orders.status
+          - name: order_date
+            type: Date
+            description: 下单日期
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_orders.order_date
+            dimension:
+              is_time: true
+          - name: released_at
+            type: DateTime
+            description: 发布/下达时间
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_orders.released_at
+            dimension:
+              is_time: true
+          - name: expected_delivery_date
+            type: Date
+            description: 期望交付日期
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_orders.expected_delivery_date
+            dimension:
+              is_time: true
+          - name: total_amount
+            type: Number
+            description: 订单总金额(含税)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_orders.total_amount
+          - name: is_centralized
+            type: Boolean
+            description: 是否集采(集中采购下达)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_orders.is_centralized
+          - name: is_under_framework
+            type: Boolean
+            description: 是否框架协议下单
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_orders.is_under_framework
+          - name: framework_agreement_id
+            type: String
+            description: 框架协议ID(若为协议下单)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: purchase_orders.framework_agreement_id
+
+      - name: goods_receipts
+        source: placeholder.dtp.goods_receipts
+        description: 收货入库(GR),必须基于有效PO,并记录质检与过账结果
+        primary_key: [goods_receipt_id]
+        fields:
+          - name: goods_receipt_id
+            type: String
+            description: 收货凭证ID(主键)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: goods_receipts.goods_receipt_id
+          - name: purchase_order_id
+            type: String
+            description: 关联PO ID
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: goods_receipts.purchase_order_id
+          - name: receipt_date
+            type: DateTime
+            description: 收货时间
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: goods_receipts.receipt_date
+            dimension:
+              is_time: true
+          - name: received_qty
+            type: Number
+            description: 实收数量
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: goods_receipts.received_qty
+          - name: qc_status
+            type: String
+            description: 质检状态(PASS/FAIL/HOLD等)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: goods_receipts.qc_status
+          - name: is_posted
+            type: Boolean
+            description: 是否过账/已入库
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: goods_receipts.is_posted
+          - name: posted_at
+            type: DateTime
+            description: 过账时间
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: goods_receipts.posted_at
+            dimension:
+              is_time: true
+          - name: warehouse_id
+            type: String
+            description: 仓库
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: goods_receipts.warehouse_id
+          - name: lot_balance_id
+            type: String
+            description: 入库后关联的库存批次余额ID(可为空)
+            expression:
+              dialects:
+                - dialect: ANSI_SQL
+                  expression: goods_receipts.lot_balance_id
+
+    relationships:
+      - name: demand_plans_to_materials
+        from: demand_plans
+        to: materials
+        from_columns: [material_id]
+        to_columns: [material_id]
+      - name: inventory_lot_balances_to_materials
+        from: inventory_lot_balances
+        to: materials
+        from_columns: [material_id]
+        to_columns: [material_id]
+      - name: balancing_recommendations_to_demand_plans
+        from: balancing_recommendations
+        to: demand_plans
+        from_columns: [demand_plan_id]
+        to_columns: [demand_plan_id]
+      - name: balancing_recommendations_to_materials
+        from: balancing_recommendations
+        to: materials
+        from_columns: [material_id]
+        to_columns: [material_id]
+      - name: purchase_requisitions_to_demand_plans
+        from: purchase_requisitions
+        to: demand_plans
+        from_columns: [demand_plan_id]
+        to_columns: [demand_plan_id]
+      - name: purchase_requisitions_to_materials
+        from: purchase_requisitions
+        to: materials
+        from_columns: [material_id]
+        to_columns: [material_id]
+      - name: purchase_requisitions_to_suppliers
+        from: purchase_requisitions
+        to: suppliers
+        from_columns: [suggested_supplier_id]
+        to_columns: [supplier_id]
+      - name: purchase_orders_to_purchase_requisitions
+        from: purchase_orders
+        to: purchase_requisitions
+        from_columns: [purchase_requisition_id]
+        to_columns: [purchase_requisition_id]
+      - name: purchase_orders_to_suppliers
+        from: purchase_orders
+        to: suppliers
+        from_columns: [supplier_id]
+        to_columns: [supplier_id]
+      - name: goods_receipts_to_purchase_orders
+        from: goods_receipts
+        to: purchase_orders
+        from_columns: [purchase_order_id]
+        to_columns: [purchase_order_id]
+
+    metrics:
+      - name: pr_to_po_cycle_avg_days
+        expression:
+          dialects:
+            - dialect: ANSI_SQL
+              expression: AVG(CAST(purchase_orders.released_at AS DATE) - CAST(purchase_requisitions.created_at AS DATE))
+        description: PR转PO平均周期(天):平均(PO.released_at-PR.created_at)。注意:不同SQL引擎日期相减语义可能不同,接入时需按目标引擎调整。
+        custom_extensions:
+          - vendor_name: COMMON
+            data: |
+              {"depends_on_datasets":["purchase_requisitions","purchase_orders"]}
+      - name: urgent_purchase_ratio
+        expression:
+          dialects:
+            - dialect: ANSI_SQL
+              expression: SUM(CASE WHEN purchase_requisitions.is_urgent = TRUE THEN 1 ELSE 0 END) * 1.0 / NULLIF(COUNT(*),0)
+        description: 紧急采购比例:紧急PR数量/PR总数(基于purchase_requisitions.is_urgent)。
+        custom_extensions:
+          - vendor_name: COMMON
+            data: |
+              {"depends_on_datasets":["purchase_requisitions"]}
+      - name: centralized_procurement_coverage_rate
+        expression:
+          dialects:
+            - dialect: ANSI_SQL
+              expression: SUM(CASE WHEN purchase_orders.is_centralized = TRUE THEN purchase_orders.total_amount ELSE 0 END) * 1.0 / NULLIF(SUM(purchase_orders.total_amount),0)
+        description: 集采覆盖率:集采PO金额/PO总金额(基于purchase_orders.is_centralized)。
+        custom_extensions:
+          - vendor_name: COMMON
+            data: |
+              {"depends_on_datasets":["purchase_orders"]}
+      - name: framework_order_ratio
+        expression:
+          dialects:
+            - dialect: ANSI_SQL
+              expression: SUM(CASE WHEN purchase_orders.is_under_framework = TRUE THEN 1 ELSE 0 END) * 1.0 / NULLIF(COUNT(*),0)
+        description: 框架协议下单比例:协议下单PO数量/PO总数(基于purchase_orders.is_under_framework)。
+        custom_extensions:
+          - vendor_name: COMMON
+            data: |
+              {"depends_on_datasets":["purchase_orders"]}
+      - name: po_on_time_delivery_rate
+        expression:
+          dialects:
+            - dialect: ANSI_SQL
+              expression: SUM(CASE WHEN goods_receipts.receipt_date <= CAST(purchase_orders.expected_delivery_date AS TIMESTAMP) THEN 1 ELSE 0 END) * 1.0 / NULLIF(COUNT(DISTINCT purchase_orders.purchase_order_id),0)
+        description: PO准时交付率:按PO维度统计,若最早收货时间不晚于期望交期则视为准时;需接入实际业务可替换为供应商确认交期/收货行项口径。
+        custom_extensions:
+          - vendor_name: COMMON
+            data: |
+              {"depends_on_datasets":["purchase_orders","goods_receipts"]}
+
+    behavior:
+      namespace: "DTP"
+      behavior_layer_version: "0.1"
+      actions:
+        - id: materials/get_by_id
+          name: 按ID查询物料
+          kind: query
+          operation: read
+          entity_name: materials
+          applies_to: { entity: dataset, dataset: materials }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              required: [material_id]
+              properties:
+                material_id: { type: string }
+          labels: [query, master_data]
+        - id: materials/list
+          name: 分页列出物料
+          kind: query
+          operation: list
+          entity_name: materials
+          applies_to: { entity: dataset, dataset: materials }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              properties:
+                page: { type: integer, minimum: 1, default: 1 }
+                page_size: { type: integer, minimum: 1, maximum: 200, default: 50 }
+                material_code: { type: string }
+                material_group: { type: string }
+                status: { type: string }
+          labels: [query, master_data]
+
+        - id: suppliers/get_by_id
+          name: 按ID查询供应商
+          kind: query
+          operation: read
+          entity_name: suppliers
+          applies_to: { entity: dataset, dataset: suppliers }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              required: [supplier_id]
+              properties:
+                supplier_id: { type: string }
+          labels: [query, master_data]
+        - id: suppliers/list
+          name: 分页列出供应商
+          kind: query
+          operation: list
+          entity_name: suppliers
+          applies_to: { entity: dataset, dataset: suppliers }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              properties:
+                page: { type: integer, minimum: 1, default: 1 }
+                page_size: { type: integer, minimum: 1, maximum: 200, default: 50 }
+                status: { type: string }
+                q: { type: string, description: "名称/编码关键字" }
+          labels: [query, master_data]
+
+        - id: demand_plans/get_by_id
+          name: 按ID查询需求计划
+          kind: query
+          operation: read
+          entity_name: demand_plans
+          applies_to: { entity: dataset, dataset: demand_plans }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              required: [demand_plan_id]
+              properties:
+                demand_plan_id: { type: string }
+          labels: [query, planning]
+        - id: demand_plans/list
+          name: 分页列出需求计划
+          kind: query
+          operation: list
+          entity_name: demand_plans
+          applies_to: { entity: dataset, dataset: demand_plans }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              properties:
+                page: { type: integer, minimum: 1, default: 1 }
+                page_size: { type: integer, minimum: 1, maximum: 200, default: 50 }
+                plant_id: { type: string }
+                material_id: { type: string }
+                date_from: { type: string, format: date }
+                date_to: { type: string, format: date }
+          labels: [query, planning]
+
+        - id: inventory_lot_balances/get_by_id
+          name: 按ID查询库存批次余额
+          kind: query
+          operation: read
+          entity_name: inventory_lot_balances
+          applies_to: { entity: dataset, dataset: inventory_lot_balances }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              required: [lot_balance_id]
+              properties:
+                lot_balance_id: { type: string }
+          labels: [query, inventory]
+        - id: inventory_lot_balances/list
+          name: 分页列出库存批次余额
+          kind: query
+          operation: list
+          entity_name: inventory_lot_balances
+          applies_to: { entity: dataset, dataset: inventory_lot_balances }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              properties:
+                page: { type: integer, minimum: 1, default: 1 }
+                page_size: { type: integer, minimum: 1, maximum: 200, default: 50 }
+                plant_id: { type: string }
+                material_id: { type: string }
+                expiry_date_from: { type: string, format: date }
+                expiry_date_to: { type: string, format: date }
+          labels: [query, inventory]
+
+        - id: balancing_recommendations/get_by_id
+          name: 按ID查询平衡利库推荐
+          kind: query
+          operation: read
+          entity_name: balancing_recommendations
+          applies_to: { entity: dataset, dataset: balancing_recommendations }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              required: [recommendation_id]
+              properties:
+                recommendation_id: { type: string }
+          labels: [query, planning]
+        - id: balancing_recommendations/list
+          name: 分页列出平衡利库推荐
+          kind: query
+          operation: list
+          entity_name: balancing_recommendations
+          applies_to: { entity: dataset, dataset: balancing_recommendations }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              properties:
+                page: { type: integer, minimum: 1, default: 1 }
+                page_size: { type: integer, minimum: 1, maximum: 200, default: 50 }
+                demand_plan_id: { type: string }
+                material_id: { type: string }
+                recommendation_type: { type: string }
+                created_from: { type: string, format: date }
+                created_to: { type: string, format: date }
+          labels: [query, planning]
+
+        - id: purchase_requisitions/get_by_id
+          name: 按ID查询采购申请
+          kind: query
+          operation: read
+          entity_name: purchase_requisitions
+          applies_to: { entity: dataset, dataset: purchase_requisitions }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              required: [purchase_requisition_id]
+              properties:
+                purchase_requisition_id: { type: string }
+          labels: [query, transactional]
+        - id: purchase_requisitions/list
+          name: 分页列出采购申请
+          kind: query
+          operation: list
+          entity_name: purchase_requisitions
+          applies_to: { entity: dataset, dataset: purchase_requisitions }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              properties:
+                page: { type: integer, minimum: 1, default: 1 }
+                page_size: { type: integer, minimum: 1, maximum: 200, default: 50 }
+                plant_id: { type: string }
+                material_id: { type: string }
+                status: { type: string }
+                is_urgent: { type: boolean }
+                date_from: { type: string, format: date }
+                date_to: { type: string, format: date }
+          labels: [query, transactional]
+
+        - id: purchase_orders/get_by_id
+          name: 按ID查询采购订单
+          kind: query
+          operation: read
+          entity_name: purchase_orders
+          applies_to: { entity: dataset, dataset: purchase_orders }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              required: [purchase_order_id]
+              properties:
+                purchase_order_id: { type: string }
+          labels: [query, transactional]
+        - id: purchase_orders/list
+          name: 分页列出采购订单
+          kind: query
+          operation: list
+          entity_name: purchase_orders
+          applies_to: { entity: dataset, dataset: purchase_orders }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              properties:
+                page: { type: integer, minimum: 1, default: 1 }
+                page_size: { type: integer, minimum: 1, maximum: 200, default: 50 }
+                supplier_id: { type: string }
+                status: { type: string }
+                is_centralized: { type: boolean }
+                is_under_framework: { type: boolean }
+                date_from: { type: string, format: date }
+                date_to: { type: string, format: date }
+          labels: [query, transactional]
+
+        - id: goods_receipts/get_by_id
+          name: 按ID查询收货凭证
+          kind: query
+          operation: read
+          entity_name: goods_receipts
+          applies_to: { entity: dataset, dataset: goods_receipts }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              required: [goods_receipt_id]
+              properties:
+                goods_receipt_id: { type: string }
+          labels: [query, warehouse]
+        - id: goods_receipts/list
+          name: 分页列出收货凭证
+          kind: query
+          operation: list
+          entity_name: goods_receipts
+          applies_to: { entity: dataset, dataset: goods_receipts }
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              properties:
+                page: { type: integer, minimum: 1, default: 1 }
+                page_size: { type: integer, minimum: 1, maximum: 200, default: 50 }
+                purchase_order_id: { type: string }
+                qc_status: { type: string }
+                is_posted: { type: boolean }
+                date_from: { type: string, format: date }
+                date_to: { type: string, format: date }
+          labels: [query, warehouse]
+
+        - id: analytics/pr_to_po_cycle_trend
+          name: PR转PO周期趋势
+          kind: query
+          operation: trend
+          entity_name: purchase_requisitions
+          description: 按时间粒度统计PR转PO平均周期,用于监控采购响应效率(KR1)。
+          applies_to:
+            metric: pr_to_po_cycle_avg_days
+            dataset: purchase_requisitions
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              required: [date_from, date_to]
+              properties:
+                date_from: { type: string, format: date }
+                date_to: { type: string, format: date }
+                granularity: { type: string, enum: ["day","week","month"], default: "month" }
+          labels: [query, analytics, trend]
+
+        - id: analytics/top_suppliers_by_spend_with_otd
+          name: 采购金额Top供应商(含准时交付率)
+          kind: query
+          operation: rank
+          entity_name: suppliers
+          description: 指定时间窗口内按PO金额排名Top供应商,并输出准时交付率,支撑绩效管理与合规治理。
+          applies_to:
+            dataset: purchase_orders
+            metric: po_on_time_delivery_rate
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              required: [date_from, date_to]
+              properties:
+                date_from: { type: string, format: date }
+                date_to: { type: string, format: date }
+                top_n: { type: integer, minimum: 1, maximum: 100, default: 10 }
+                plant_id: { type: string }
+          labels: [query, analytics, ranking]
+
+        - id: analytics/expiring_inventory_risk
+          name: 临期库存风险清单
+          kind: query
+          operation: list
+          entity_name: inventory_lot_balances
+          description: 输出未来N天内到期的库存批次,用于降低报废风险并支持利库优先策略。
+          applies_to:
+            dataset: inventory_lot_balances
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              required: [within_days]
+              properties:
+                within_days: { type: integer, minimum: 1, maximum: 365, default: 30 }
+                plant_id: { type: string }
+                material_id: { type: string }
+          labels: [query, analytics, risk]
+
+        - id: analytics/top_materials_by_planned_demand
+          name: 需求量Top物料
+          kind: query
+          operation: rank
+          entity_name: materials
+          description: 指定时间窗口内按需求计划数量汇总排名Top物料,用于识别关键物料与采购优先级。
+          applies_to:
+            dataset: demand_plans
+          io_schema:
+            input_schema:
+              type: object
+              additionalProperties: false
+              required: [date_from, date_to]
+              properties:
+                date_from: { type: string, format: date }
+                date_to: { type: string, format: date }
+                plant_id: { type: string }
+                top_n: { type: integer, minimum: 1, maximum: 100, default: 10 }
+          labels: [query, analytics, ranking]
+
+      rules:
+        - id: dtp/rule_po_must_from_approved_pr
+          name: 禁止无申请下单
+          severity: error
+          when: { entity: action }
+          constraint: { type: governance, field: "purchase_orders.purchase_requisition_id" }
+          message: 采购订单必须来源于已审批的采购申请(PR),严禁无申请下单。
+          remediation: 确认PR状态为Approved并建立PO-PR引用关系后再下达PO。
+        - id: dtp/rule_gr_requires_valid_po_status
+          name: 收货必须基于有效PO
+          severity: error
+          when: { entity: dataset }
+          constraint: { type: governance, field: "goods_receipts.purchase_order_id" }
+          message: 收货仅允许针对状态为已发送/已确认的PO进行,禁止无单到货或对未发布PO收货。
+          remediation: 先完成PO发布与供应商确认,再进行收货与过账。
+        - id: dtp/rule_budget_check_before_pr_submit
+          name: PR提交前预算校验
+          severity: warn
+          when: { entity: dataset }
+          constraint: { type: control, field: "purchase_requisitions.budget_check_result" }
+          message: 采购申请提交/审批前必须完成预算可用额度校验,预算不足应拦截或升级审批。
+          remediation: 补充预算或走超预算审批流程后再继续。
+        - id: dtp/rule_master_data_required
+          name: 关键主数据必须提前维护
+          severity: warn
+          when: { entity: dataset }
+          constraint: { type: data_quality }
+          message: 物料/供应商/组织等主数据缺失会导致流程无法合规执行,必须标准化维护并可追溯。
+          remediation: 先在MDM维护物料与供应商,再允许创建PR/PO。
+        - id: dtp/rule_balance_inventory_before_purchase
+          name: 利库优先于新购
+          severity: info
+          when: { entity: dataset }
+          constraint: { type: policy }
+          message: 在满足交期与质量前提下,优先使用现存库存或跨组织调拨满足需求,减少重复采购与资金占用。
+          remediation: 优先生成balancing_recommendations,仅对recommendation_type=purchase的净需求创建PR。
